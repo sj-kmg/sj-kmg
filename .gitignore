@@ -1,0 +1,17 @@
+# Office 임시/잠금 파일
+~$*
+*.tmp
+
+# Node / Next.js (웹 앱 추가 시)
+node_modules/
+.next/
+out/
+.vercel/
+
+# 환경 변수
+.env
+.env*.local
+
+# OS
+Thumbs.db
+.DS_Store
