@@ -2,6 +2,7 @@
 // 시트명/헤더명은 data/sj-data.xlsx의 규격과 일치해야 한다 (사용안내 시트 참고).
 import * as XLSX from "xlsx";
 import type { SJData, Sale, Purchase } from "./types";
+import { payStatus } from "./recompute";
 
 const REQUIRED_SHEETS = ["거래처", "프로젝트", "매출", "매입", "자금일보", "인사명부", "급여대장"];
 
@@ -26,25 +27,26 @@ function str(v: unknown): string {
   return String(v).trim();
 }
 
+// SheetJS가 날짜 셀을 읽을 때 타임존 보정 오차(수십 초)로 자정 직전 시각이 나올 수 있다.
+// 데이터 파일의 날짜는 전부 순수 날짜이므로, 로컬 기준 가장 가까운 자정으로 반올림해 보정한다.
+function normalizeDate(d: Date): Date {
+  const midnight = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  if (d.getHours() >= 12) midnight.setDate(midnight.getDate() + 1);
+  return midnight;
+}
+
 function asDate(v: unknown): Date | null {
-  if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
+  if (v instanceof Date) return isNaN(v.getTime()) ? null : normalizeDate(v);
   if (typeof v === "number" && v > 0) {
     // 엑셀 날짜 일련번호 fallback
     const d = new Date(Math.round((v - 25569) * 86400 * 1000));
-    return isNaN(d.getTime()) ? null : d;
+    return isNaN(d.getTime()) ? null : normalizeDate(d);
   }
   if (typeof v === "string" && v.trim()) {
     const d = new Date(v.trim());
-    return isNaN(d.getTime()) ? null : d;
+    return isNaN(d.getTime()) ? null : normalizeDate(d);
   }
   return null;
-}
-
-function payStatus(total: number, paid: number, done: string, partial: string, none: string): string {
-  if (total <= 0) return "";
-  if (paid >= total) return done;
-  if (paid > 0) return partial;
-  return none;
 }
 
 export function parseWorkbook(buf: ArrayBuffer, fileName: string): SJData {

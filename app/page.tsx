@@ -5,6 +5,8 @@ import type { SJData } from "@/lib/types";
 import { parseWorkbook } from "@/lib/parse";
 import { saveData, loadData, clearData } from "@/lib/store";
 import { dataYears } from "@/lib/calc";
+import { recomputeAll } from "@/lib/recompute";
+import { downloadExcel } from "@/lib/export";
 import FileLoader from "@/components/FileLoader";
 import OverviewTab from "@/components/OverviewTab";
 import ProjectsTab from "@/components/ProjectsTab";
@@ -12,6 +14,7 @@ import SalesTab from "@/components/SalesTab";
 import PurchasesTab from "@/components/PurchasesTab";
 import CashTab from "@/components/CashTab";
 import HrTab from "@/components/HrTab";
+import EditTab from "@/components/EditTab";
 
 const TABS = [
   { key: "overview", label: "개요" },
@@ -20,6 +23,7 @@ const TABS = [
   { key: "purchases", label: "매입" },
   { key: "cash", label: "자금" },
   { key: "hr", label: "인사·급여" },
+  { key: "edit", label: "✏️ 편집" },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -59,6 +63,16 @@ export default function Home() {
     clearData();
     setData(null);
     setTab("overview");
+  };
+
+  // 편집 탭에서 저장 → 파생값 재계산 후 모든 탭·localStorage에 반영
+  const onUpdate = (patch: Partial<SJData>) => {
+    setData((prev) => {
+      if (!prev) return prev;
+      const merged = recomputeAll({ ...prev, ...patch });
+      saveData(merged);
+      return merged;
+    });
   };
 
   if (!hydrated) return null;
@@ -103,6 +117,9 @@ export default function Home() {
               ))}
             </select>
           )}
+          <button className="btn" onClick={() => downloadExcel(data)}>
+            📥 엑셀 다운로드
+          </button>
           <button className="btn" onClick={() => fileRef.current?.click()}>
             다른 파일 열기
           </button>
@@ -143,6 +160,7 @@ export default function Home() {
         {tab === "purchases" && <PurchasesTab data={data} />}
         {tab === "cash" && <CashTab data={data} />}
         {tab === "hr" && <HrTab data={data} />}
+        {tab === "edit" && <EditTab data={data} onUpdate={onUpdate} />}
 
         <p className="footer-note">
           🔒 이 화면의 데이터는 내 PC의 브라우저에만 저장됩니다 · 엑셀 수정 후에는 &quot;다른
